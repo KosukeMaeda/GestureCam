@@ -213,7 +213,7 @@ class CaptureTask extends TimerTask {
 
     @Override
     public void run() {
-        mHandler.post(new Runnable() {
+        new Thread(new Runnable() {
             @Override
             public void run() {
                 Bitmap bitmap = mCamera.capture();
@@ -232,12 +232,13 @@ class CaptureTask extends TimerTask {
                 task.setOnCallBack(new AsyncHttp.CallBackTask() {
                     @Override
                     public void CallBack(JSONObject json) {
+                        if (json == null) return;
                         Log.d(TAG, "Responce body: " + json.toString());
                     }
                 });
                 task.execute(params);
             }
-        });
+        }).start();
     }
 
     public static String convert2Base64(Bitmap bitmap) {
