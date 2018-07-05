@@ -72,10 +72,25 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        mCamera = new Camera(this, mTexutreView);
 
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        mCamera = new Camera(this, mTexutreView);
         mTimer = new Timer();
         mTimer.scheduleAtFixedRate(new CaptureTask(this, mCamera), 0, 1000);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+
+        mCamera.close();
+        mTimer.cancel();
+        mTimer = null;
     }
 }
 
@@ -84,7 +99,7 @@ class Camera {
     private static final String TAG = Camera.class.getSimpleName();
     private static int REQUEST_CODE_CAMERA_PERMISSION = 100;
 
-    private CameraDevice mCamera;
+    private CameraDevice mCameraDevice;
     private TextureView mTextureView;
     private Size mCameraSize;
     private CaptureRequest.Builder mPreviewBuilder;
@@ -94,20 +109,20 @@ class Camera {
     private CameraDevice.StateCallback mCameraDeviceCallback = new CameraDevice.StateCallback() {
         @Override
         public void onOpened(@NonNull CameraDevice camera) {
-            mCamera = camera;
+            mCameraDevice = camera;
             createCaptureSession();
         }
 
         @Override
         public void onDisconnected(@NonNull CameraDevice camera) {
             camera.close();
-            mCamera = null;
+            mCameraDevice = null;
         }
 
         @Override
         public void onError(@NonNull CameraDevice camera, int error) {
             camera.close();
-            mCamera = null;
+            mCameraDevice = null;
         }
     };
 
@@ -160,14 +175,14 @@ class Camera {
         texture.setDefaultBufferSize(mCameraSize.getWidth(), mCameraSize.getHeight());
         Surface surface = new Surface(texture);
         try {
-            mPreviewBuilder = mCamera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
+            mPreviewBuilder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
 
         mPreviewBuilder.addTarget(surface);
         try {
-            mCamera.createCaptureSession(Collections.singletonList(surface), mCameraCaptureSessionCallback, null);
+            mCameraDevice.createCaptureSession(Collections.singletonList(surface), mCameraCaptureSessionCallback, null);
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
@@ -196,17 +211,20 @@ class Camera {
         bitmap = mTextureView.getBitmap();
         return bitmap;
     }
+
+    public void close() {
+        mPreviewSession.close();
+        mCameraDevice.close();
+    }
 }
 
 class CaptureTask extends TimerTask {
     private static final String TAG = CaptureTask.class.getSimpleName();
 
-    private Handler mHandler;
     private Context mContext;
     private Camera mCamera;
 
     public CaptureTask(Context context, Camera camera) {
-        this.mHandler = new Handler();
         this.mContext = context;
         this.mCamera = camera;
     }
