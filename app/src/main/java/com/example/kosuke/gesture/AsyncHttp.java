@@ -21,6 +21,8 @@ import java.util.HashMap;
 import java.util.Random;
 
 public class AsyncHttp extends AsyncTask<HashMap<String, String>, Void, JSONObject> {
+    private static final String TAG = AsyncHttp.class.getSimpleName();
+
     HttpURLConnection con = null;
     String rootUrl = "https://api-us.faceplusplus.com/humanbodypp/beta/gesture";
 
@@ -43,6 +45,7 @@ public class AsyncHttp extends AsyncTask<HashMap<String, String>, Void, JSONObje
         String boundaryString = getBoundary();
 
         try {
+            Log.d(TAG, "Connect to " + rootUrl);
             URL url = new URL(rootUrl);
             con = (HttpURLConnection) url.openConnection();
             con.setUseCaches(false);
@@ -68,7 +71,7 @@ public class AsyncHttp extends AsyncTask<HashMap<String, String>, Void, JSONObje
             obos.close();
 
             status = con.getResponseCode();
-            Log.d("status in AsyncHttp", String.valueOf(status));
+            Log.d(TAG, "ResponseCode: " + status);
 
             final InputStream stream = (status == 200) ? con.getInputStream() : con.getErrorStream();
             BufferedReader reader = new BufferedReader(new InputStreamReader(stream, "UTF-8"));

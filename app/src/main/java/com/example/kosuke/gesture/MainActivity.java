@@ -36,6 +36,8 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 public class MainActivity extends AppCompatActivity {
+    private static final String TAG = MainActivity.class.getSimpleName();
+
     private Camera mCamera;
     private TextureView mTexutreView;
 
@@ -79,6 +81,7 @@ public class MainActivity extends AppCompatActivity {
 
 
 class Camera {
+    private static final String TAG = Camera.class.getSimpleName();
     private static int REQUEST_CODE_CAMERA_PERMISSION = 100;
 
     private CameraDevice mCamera;
@@ -188,15 +191,16 @@ class Camera {
     }
 
     public Bitmap capture() {
-        Log.d("Camera#capture", "start capture");
+        Log.d(TAG, "Capture.");
         Bitmap bitmap;
         bitmap = mTextureView.getBitmap();
-        Log.d("Camera#capture", "success");
         return bitmap;
     }
 }
 
 class CaptureTask extends TimerTask {
+    private static final String TAG = CaptureTask.class.getSimpleName();
+
     private Handler mHandler;
     private Context mContext;
     private Camera mCamera;
@@ -214,7 +218,7 @@ class CaptureTask extends TimerTask {
             public void run() {
                 Bitmap bitmap = mCamera.capture();
                 if (bitmap == null) {
-                    Log.d("CaptureTask.run", "bitmap is null. terminate Capture task.");
+                    Log.d(TAG, "Terminate Capture task due to bitmap is null.");
                     return;
                 }
 
@@ -224,12 +228,11 @@ class CaptureTask extends TimerTask {
                 params.put("api_secret", mContext.getString(R.string.api_secret_key));
                 params.put("image_base64", convert2Base64(bitmap));
 
-                Log.d("MainActivity#request", "request start.");
                 AsyncHttp task = new AsyncHttp();
                 task.setOnCallBack(new AsyncHttp.CallBackTask() {
                     @Override
                     public void CallBack(JSONObject json) {
-                        Log.d("returned value", json.toString());
+                        Log.d(TAG, "Responce body: " + json.toString());
                     }
                 });
                 task.execute(params);
