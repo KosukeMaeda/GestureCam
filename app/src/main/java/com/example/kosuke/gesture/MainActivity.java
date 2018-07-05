@@ -39,7 +39,7 @@ public class MainActivity extends AppCompatActivity {
     private static final String TAG = MainActivity.class.getSimpleName();
 
     private Camera mCamera;
-    private TextureView mTexutreView;
+    private TextureView mTextureView;
 
     private Timer mTimer;
 
@@ -49,8 +49,8 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        mTexutreView = findViewById(R.id.texture);
-        mTexutreView.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
+        mTextureView = findViewById(R.id.texture);
+        mTextureView.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
             @Override
             public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
                 mCamera.open();
@@ -71,15 +71,13 @@ public class MainActivity extends AppCompatActivity {
 
             }
         });
-
-
     }
 
     @Override
     protected void onResume() {
         super.onResume();
 
-        mCamera = new Camera(this, mTexutreView);
+        mCamera = new Camera(this, mTextureView);
         mTimer = new Timer();
         mTimer.scheduleAtFixedRate(new CaptureTask(this, mCamera), 0, 1000);
     }
