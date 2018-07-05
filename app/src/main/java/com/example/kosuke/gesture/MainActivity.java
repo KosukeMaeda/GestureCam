@@ -5,7 +5,6 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.SurfaceTexture;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
@@ -14,14 +13,11 @@ import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
 import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.params.StreamConfigurationMap;
-import android.os.AsyncTask;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
 import android.support.v4.content.PermissionChecker;
-import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Base64;
@@ -29,19 +25,21 @@ import android.util.Log;
 import android.util.Size;
 import android.view.Surface;
 import android.view.TextureView;
-import android.view.View;
 import android.widget.Toast;
 
-import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Timer;
+import java.util.TimerTask;
 
 public class MainActivity extends AppCompatActivity {
     private Camera mCamera;
     private TextureView mTexutreView;
+
+    private Timer mTimer;
 
 
     @Override
@@ -73,39 +71,9 @@ public class MainActivity extends AppCompatActivity {
         });
 
         mCamera = new Camera(this, mTexutreView);
-        findViewById(R.id.button_capture).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Bitmap bitmap = mCamera.capture();
-                requestApi(bitmap);
-            }
-        });
 
-    }
-
-    public void requestApi(Bitmap bitmap) {
-        HashMap<String, String> params = new HashMap<>();
-
-        params.put("api_key", getString(R.string.api_key));
-        params.put("api_secret", getString(R.string.api_secret_key));
-        params.put("image_base64", convert2Base64(bitmap));
-
-        Log.d("MainActivity#request", "request start.");
-        AsyncHttp task = new AsyncHttp();
-        task.setOnCallBack(new AsyncHttp.CallBackTask() {
-            @Override
-            public void CallBack(JSONObject json) {
-                Log.d("returned value", json.toString());
-            }
-        });
-        task.execute(params);
-
-    }
-
-    public static String convert2Base64(Bitmap bitmap) {
-        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-        bitmap.compress(Bitmap.CompressFormat.PNG, 100, byteArrayOutputStream);
-        return Base64.encodeToString(byteArrayOutputStream.toByteArray(), Base64.DEFAULT);
+        mTimer = new Timer();
+        mTimer.scheduleAtFixedRate(new CaptureTask(this, mCamera), 0, 1000);
     }
 }
 
@@ -222,16 +190,56 @@ class Camera {
     public Bitmap capture() {
         Log.d("Camera#capture", "start capture");
         Bitmap bitmap;
-        try {
-            mPreviewSession.stopRepeating();
-            if (mTextureView.isAvailable()) {
-                bitmap = mTextureView.getBitmap();
-                Log.d("Camera#capture", "success");
-                return bitmap;
+        bitmap = mTextureView.getBitmap();
+        Log.d("Camera#capture", "success");
+        return bitmap;
+    }
+}
+
+class CaptureTask extends TimerTask {
+    private Handler mHandler;
+    private Context mContext;
+    private Camera mCamera;
+
+    public CaptureTask(Context context, Camera camera) {
+        this.mHandler = new Handler();
+        this.mContext = context;
+        this.mCamera = camera;
+    }
+
+    @Override
+    public void run() {
+        mHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                Bitmap bitmap = mCamera.capture();
+                if (bitmap == null) {
+                    Log.d("CaptureTask.run", "bitmap is null. terminate Capture task.");
+                    return;
+                }
+
+                HashMap<String, String> params = new HashMap<>();
+
+                params.put("api_key", mContext.getString(R.string.api_key));
+                params.put("api_secret", mContext.getString(R.string.api_secret_key));
+                params.put("image_base64", convert2Base64(bitmap));
+
+                Log.d("MainActivity#request", "request start.");
+                AsyncHttp task = new AsyncHttp();
+                task.setOnCallBack(new AsyncHttp.CallBackTask() {
+                    @Override
+                    public void CallBack(JSONObject json) {
+                        Log.d("returned value", json.toString());
+                    }
+                });
+                task.execute(params);
             }
-        } catch (CameraAccessException e) {
-            e.printStackTrace();
-        }
-        return null;
+        });
+    }
+
+    public static String convert2Base64(Bitmap bitmap) {
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, byteArrayOutputStream);
+        return Base64.encodeToString(byteArrayOutputStream.toByteArray(), Base64.DEFAULT);
     }
 }
