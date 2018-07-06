@@ -90,7 +90,7 @@ public class MainActivity extends AppCompatActivity {
 
         mCamera = new Camera(this, mTextureView);
         mTimer = new Timer();
-        mTimer.scheduleAtFixedRate(new CaptureTask(this, mCamera), 0, 1000);
+        mTimer.scheduleAtFixedRate(new CaptureTask(this, mCamera), 0, 1500);
     }
 
     @Override
@@ -247,10 +247,12 @@ class CaptureTask extends TimerTask {
 
     private Context mContext;
     private Camera mCamera;
+    private final Handler mHandler;
 
     public CaptureTask(Context context, Camera camera) {
         this.mContext = context;
         this.mCamera = camera;
+        mHandler = new Handler();
     }
 
     @Override
@@ -287,6 +289,12 @@ class CaptureTask extends TimerTask {
                                 if (!gesture.has("thumb_up")) return;
                                 if (gesture.getLong("thumb_up") > 60) {
                                     mCamera.save(mCamera.capture());
+                                    mHandler.post(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            Toast.makeText(mContext, "写真を保存しました", Toast.LENGTH_SHORT).show();
+                                        }
+                                    });
                                     return;
                                 }
                             }
