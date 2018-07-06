@@ -3,6 +3,7 @@ package com.example.kosuke.gesture;
 import android.Manifest;
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.SurfaceTexture;
@@ -15,6 +16,7 @@ import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.provider.MediaStore;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.PermissionChecker;
@@ -37,6 +39,7 @@ import java.util.TimerTask;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = MainActivity.class.getSimpleName();
+    private static final int REQUEST_PERMISSION = 200;
 
     private Camera mCamera;
     private TextureView mTextureView;
@@ -48,6 +51,12 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        if (PermissionChecker.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED
+                || PermissionChecker.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            Intent intent = new Intent(this, PermissionActivity.class);
+            startActivityForResult(intent, REQUEST_PERMISSION);
+        }
 
         mTextureView = findViewById(R.id.texture);
         mTextureView.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
@@ -86,16 +95,22 @@ public class MainActivity extends AppCompatActivity {
     protected void onPause() {
         super.onPause();
 
-        mCamera.close();
-        mTimer.cancel();
+        if (mCamera != null) mCamera.close();
+        if (mTimer != null) mTimer.cancel();
         mTimer = null;
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent intent) {
+        if (requestCode == REQUEST_PERMISSION) {
+            if (resultCode == RESULT_CANCELED) finish();
+        }
     }
 }
 
 
 class Camera {
     private static final String TAG = Camera.class.getSimpleName();
-    private static int REQUEST_CODE_CAMERA_PERMISSION = 100;
 
     private CameraDevice mCameraDevice;
     private TextureView mTextureView;
@@ -150,12 +165,9 @@ class Camera {
                 if (characteristics.get(CameraCharacteristics.LENS_FACING) == CameraCharacteristics.LENS_FACING_BACK) {
                     StreamConfigurationMap map = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
                     mCameraSize = map.getOutputSizes(SurfaceTexture.class)[0];
-                    if (PermissionChecker.checkSelfPermission(mContext, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-                        requestCameraPermission();
-                    } else {
+                    if (PermissionChecker.checkSelfPermission(mContext, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
                         manager.openCamera(cameraId, mCameraDeviceCallback, null);
                     }
-
                     return;
                 }
             }
@@ -199,11 +211,8 @@ class Camera {
         }
     }
 
-    private void requestCameraPermission() {
-        ActivityCompat.requestPermissions((Activity) mContext, new String[]{Manifest.permission.CAMERA}, REQUEST_CODE_CAMERA_PERMISSION);
-    }
-
     public Bitmap capture() {
+        if (!mTextureView.isAvailable()) return null;
         Log.d(TAG, "Capture.");
         Bitmap bitmap;
         bitmap = mTextureView.getBitmap();
@@ -211,8 +220,19 @@ class Camera {
     }
 
     public void close() {
-        mPreviewSession.close();
-        mCameraDevice.close();
+        if (mPreviewSession != null) mPreviewSession.close();
+        if (mCameraDevice != null) mCameraDevice.close();
+    }
+
+    public void save(Bitmap bitmap) {
+        if (PermissionChecker.checkSelfPermission(mContext, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
+            MediaStore.Images.Media.insertImage(
+                    mContext.getContentResolver(),
+                    bitmap,
+                    null,
+                    null
+            );
+        }
     }
 }
 
@@ -253,6 +273,7 @@ class CaptureTask extends TimerTask {
                     }
                 });
                 task.execute(params);
+                mCamera.save(bitmap);
             }
         }).start();
     }
