@@ -1,7 +1,6 @@
 package com.example.kosuke.gesture;
 
 import android.Manifest;
-import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -18,7 +17,6 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.provider.MediaStore;
 import android.support.annotation.NonNull;
-import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.PermissionChecker;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -34,20 +32,30 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = MainActivity.class.getSimpleName();
     private static final int REQUEST_PERMISSION = 200;
+    private static final ArrayList<String> acceptableGestures = new ArrayList<>(Arrays.asList(
+            "heart_a",
+            "heart_b",
+            "heart_c",
+            "heart_d",
+            "thumb_up",
+            "rock",
+            "phonecall"));
 
     private Camera mCamera;
     private TextureView mTextureView;
 
     private Timer mTimer;
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -90,7 +98,7 @@ public class MainActivity extends AppCompatActivity {
 
         mCamera = new Camera(this, mTextureView);
         mTimer = new Timer();
-        mTimer.scheduleAtFixedRate(new CaptureTask(this, mCamera), 0, 1500);
+        mTimer.scheduleAtFixedRate(new CaptureTask(this, mCamera, acceptableGestures), 0, 1500);
     }
 
     @Override
@@ -248,11 +256,13 @@ class CaptureTask extends TimerTask {
     private Context mContext;
     private Camera mCamera;
     private final Handler mHandler;
+    private List<String> acceptableGestures;
 
-    public CaptureTask(Context context, Camera camera) {
+    public CaptureTask(Context context, Camera camera, List<String> acceptableGestures) {
         this.mContext = context;
         this.mCamera = camera;
         mHandler = new Handler();
+        this.acceptableGestures = acceptableGestures;
     }
 
     @Override
@@ -286,16 +296,18 @@ class CaptureTask extends TimerTask {
                             for (int i = 0; i < hands.length(); i++) {
                                 JSONObject gesture = hands.getJSONObject(i).getJSONObject("gesture");
 
-                                if (!gesture.has("thumb_up")) return;
-                                if (gesture.getLong("thumb_up") > 60) {
-                                    mCamera.save(mCamera.capture());
-                                    mHandler.post(new Runnable() {
-                                        @Override
-                                        public void run() {
-                                            Toast.makeText(mContext, "写真を保存しました", Toast.LENGTH_SHORT).show();
-                                        }
-                                    });
-                                    return;
+                                for (String acceptableGesture : acceptableGestures) {
+                                    if (!gesture.has(acceptableGesture)) return;
+                                    if (gesture.getLong(acceptableGesture) > 60) {
+                                        mCamera.save(mCamera.capture());
+                                        mHandler.post(new Runnable() {
+                                            @Override
+                                            public void run() {
+                                                Toast.makeText(mContext, "写真を保存しました", Toast.LENGTH_SHORT).show();
+                                            }
+                                        });
+                                        return;
+                                    }
                                 }
                             }
                         } catch (JSONException e) {
