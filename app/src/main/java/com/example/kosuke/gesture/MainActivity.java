@@ -29,6 +29,8 @@ import android.view.Surface;
 import android.view.TextureView;
 import android.widget.Toast;
 
+import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
@@ -225,13 +227,17 @@ class Camera {
     }
 
     public void save(Bitmap bitmap) {
+        if (bitmap == null) {
+            Log.d(TAG, "Bitmap is null. Cancel to save an image.");
+        }
         if (PermissionChecker.checkSelfPermission(mContext, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
-            MediaStore.Images.Media.insertImage(
+            String urlStored = MediaStore.Images.Media.insertImage(
                     mContext.getContentResolver(),
                     bitmap,
                     null,
                     null
             );
+            Log.d(TAG, "Image is saved in " + urlStored);
         }
     }
 }
@@ -270,10 +276,26 @@ class CaptureTask extends TimerTask {
                     public void CallBack(JSONObject json) {
                         if (json == null) return;
                         Log.d(TAG, "Responce body: " + json.toString());
+
+                        try {
+                            if (json.getInt("status") != 200) return;
+                            JSONArray hands = json.getJSONArray("hands");
+
+                            for (int i = 0; i < hands.length(); i++) {
+                                JSONObject gesture = hands.getJSONObject(i).getJSONObject("gesture");
+
+                                if (!gesture.has("thumb_up")) return;
+                                if (gesture.getLong("thumb_up") > 60) {
+                                    mCamera.save(mCamera.capture());
+                                    return;
+                                }
+                            }
+                        } catch (JSONException e) {
+                            e.printStackTrace();
+                        }
                     }
                 });
                 task.execute(params);
-                mCamera.save(bitmap);
             }
         }).start();
     }
