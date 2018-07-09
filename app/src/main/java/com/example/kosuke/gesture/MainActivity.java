@@ -26,6 +26,7 @@ import android.util.Log;
 import android.util.Size;
 import android.view.Surface;
 import android.view.TextureView;
+import android.view.View;
 import android.widget.Toast;
 
 import org.json.JSONArray;
@@ -117,6 +118,10 @@ public class MainActivity extends AppCompatActivity {
             if (resultCode == RESULT_CANCELED) finish();
         }
     }
+
+    public void changeCamera(View v) {
+        mCamera.changeLens();
+    }
 }
 
 
@@ -130,6 +135,7 @@ class Camera {
     private CameraCaptureSession mPreviewSession;
     private Context mContext;
     private MediaActionSound mMediaActionSound;
+    private int mLens = CameraCharacteristics.LENS_FACING_BACK;
 
     private CameraDevice.StateCallback mCameraDeviceCallback = new CameraDevice.StateCallback() {
         @Override
@@ -172,11 +178,12 @@ class Camera {
     }
 
     public void open() {
+        if (mCameraDevice != null) mCameraDevice.close();
         try {
             CameraManager manager = (CameraManager) mContext.getSystemService(Context.CAMERA_SERVICE);
             for (String cameraId : manager.getCameraIdList()) {
                 CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraId);
-                if (characteristics.get(CameraCharacteristics.LENS_FACING) == CameraCharacteristics.LENS_FACING_BACK) {
+                if (characteristics.get(CameraCharacteristics.LENS_FACING) == mLens) {
                     StreamConfigurationMap map = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
                     mCameraSize = map.getOutputSizes(SurfaceTexture.class)[0];
                     if (PermissionChecker.checkSelfPermission(mContext, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
@@ -188,6 +195,14 @@ class Camera {
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
+    }
+
+    public void changeLens() {
+        if (mCameraDevice != null) mCameraDevice.close();
+        int lens = (mLens == CameraCharacteristics.LENS_FACING_BACK) ? CameraCharacteristics.LENS_FACING_FRONT : CameraCharacteristics.LENS_FACING_BACK;
+        mLens = lens;
+
+        open();
     }
 
     private void createCaptureSession() {
