@@ -13,6 +13,7 @@ import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
 import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.params.StreamConfigurationMap;
+import android.media.MediaActionSound;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.provider.MediaStore;
@@ -128,6 +129,7 @@ class Camera {
     private CaptureRequest.Builder mPreviewBuilder;
     private CameraCaptureSession mPreviewSession;
     private Context mContext;
+    private MediaActionSound mMediaActionSound;
 
     private CameraDevice.StateCallback mCameraDeviceCallback = new CameraDevice.StateCallback() {
         @Override
@@ -165,6 +167,8 @@ class Camera {
     public Camera(Context context, TextureView textureView) {
         this.mContext = context;
         this.mTextureView = textureView;
+        mMediaActionSound = new MediaActionSound();
+        mMediaActionSound.load(MediaActionSound.SHUTTER_CLICK);
     }
 
     public void open() {
@@ -221,17 +225,19 @@ class Camera {
         }
     }
 
-    public Bitmap capture() {
+    public Bitmap capture(boolean playSound) {
         if (!mTextureView.isAvailable()) return null;
         Log.d(TAG, "Capture.");
         Bitmap bitmap;
         bitmap = mTextureView.getBitmap();
+        if (playSound) mMediaActionSound.play(MediaActionSound.SHUTTER_CLICK);
         return bitmap;
     }
 
     public void close() {
         if (mPreviewSession != null) mPreviewSession.close();
         if (mCameraDevice != null) mCameraDevice.close();
+        if (mMediaActionSound != null) mMediaActionSound.release();
     }
 
     public void save(Bitmap bitmap) {
@@ -270,7 +276,7 @@ class CaptureTask extends TimerTask {
         new Thread(new Runnable() {
             @Override
             public void run() {
-                Bitmap bitmap = mCamera.capture();
+                Bitmap bitmap = mCamera.capture(false);
                 if (bitmap == null) {
                     Log.d(TAG, "Terminate Capture task due to bitmap is null.");
                     return;
@@ -299,7 +305,7 @@ class CaptureTask extends TimerTask {
                                 for (String acceptableGesture : acceptableGestures) {
                                     if (!gesture.has(acceptableGesture)) return;
                                     if (gesture.getLong(acceptableGesture) > 60) {
-                                        mCamera.save(mCamera.capture());
+                                        mCamera.save(mCamera.capture(true));
                                         mHandler.post(new Runnable() {
                                             @Override
                                             public void run() {
