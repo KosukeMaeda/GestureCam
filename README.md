@@ -16,7 +16,7 @@
 ```
 3. build and run!
 
-## Avaliable gestures
+## Available gestures
  - heart_a
  - heart_b
  - heart_c
